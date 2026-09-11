@@ -1,0 +1,72 @@
+# DATA DICTIONARY & FILTERING RULES
+
+This document outlines the variables (columns) present in your datasets, what they represent, and the specific filtering or normalization rules applied to them throughout the analysis pipeline.
+
+--------------------------------------------------------------------------------
+## 1. Class & RFID Mapping Data (df_class, df_rfid)
+Source: `tagid-mifareid.csv`, `5tagid.csv`, `6tagid.csv`, `7tagid.csv`
+
+* **Mifare ID**
+  - **Represents:** The unique hardware identifier of the RFID card/sensor.
+  
+* **Student ID**
+  - **Represents:** The official school ID number of the student holding the card.
+
+* **Class**
+  - **Represents:** The classroom to which the student belongs (e.g., '5-A', '6-B').
+  - **Filtering:** Missing or empty values are automatically filled with the string `'unknown'` to prevent NaN errors during data merging.
+
+* **Notes**
+  - **Represents:** The role or classification of the tag holder (e.g., 'Student', 'Teacher', 'Stationary', 'Employee', 'Nöbetçi').
+  - **Filtering & Normalization:**
+    - Any missing values are filled with `'unknown'`.
+    - Turkish `'Öğrenci'` is translated to `'Student'`.
+    - **5th Grade Fix:** Tags mislabeled as `'Stationary'` or `'unknown'` but possessing a valid Student ID are programmatically corrected back to `'Student'`.
+    - **7th Grade Fix:** Students temporarily marked as `'Nöbetçi'` (on-duty) are reverted to `'Student'`.
+
+* **Tag ID**
+  - **Represents:** A shorter, internal reference ID for the tag. This is the primary key used to join the class metadata with the raw contact logs.
+
+* **Type**
+  - **Represents:** The physical form factor of the sensor (e.g., 'Card').
+
+
+--------------------------------------------------------------------------------
+## 2. Raw Contact Logs (df_contacts)
+Source: `all1.csv`, `all2.csv`
+
+* **tagid**
+  - **Represents:** The Tag ID of the sensor that initiated or recorded the interaction.
+
+* **touched_tagid**
+  - **Represents:** The Tag ID of the other sensor involved in the interaction.
+
+* **begin_time_s** / **end_time_s**
+  - **Represents:** The start and end time of the contact event, converted from milliseconds into a standard seconds-based Unix timestamp.
+  - **Filtering (Time-Window):** Contacts are strictly filtered to retain only those occurring between `09:00:00` and `15:00:00` on the specific deployment date for that grade (e.g., 2023-03-15 for 7th grade).
+
+* **duration**
+  - **Represents:** The length of the continuous contact interaction, in seconds.
+  - **Filtering:** Rows with a duration of `0` are dropped as invalid readings.
+
+* **min_distance**
+  - **Represents:** The closest proximity recorded between the two sensors during the interaction, measured in units (typically cm).
+  - **Filtering:** Rows where distance is exactly `0` or greater than/equal to `3600` are removed, as these represent sensor noise or out-of-bounds readings.
+
+
+--------------------------------------------------------------------------------
+## 3. Derived & Joined Variables (df5, df6, df7)
+Created during the `process_grade_contacts` pipeline.
+
+* **Class_x** / **Notes_x**
+  - **Represents:** The Class and Role metadata joined specifically for the `tagid` sensor.
+
+* **Class_y** / **Notes_y**
+  - **Represents:** The Class and Role metadata joined specifically for the `touched_tagid` sensor.
+  - **Filtering (Student-Only):** In later stages, any row where *either* `Notes_x` or `Notes_y` belongs to `['Stationary', 'Teacher', 'Employee', 'Nöbetçi']` is removed to isolate purely student-to-student interactions.
+  - **Filtering (Known-Class):** For class-resolved matrices, any row where *either* `Class_x` or `Class_y` is `'unknown'` is dropped to prevent skewing class-level statistics.
+
+* **tag_min** / **tag_max**
+  - **Represents:** A direction-agnostic pairing created by taking the minimum and maximum of the `tagid` and `touched_tagid`. This ensures that an interaction from A->B is treated exactly the same as B->A.
+  - **Filtering (Exact Deduplication):** Exact duplicate rows matching on `tag_min`, `tag_max`, start time, end time, distance, and duration are dropped.
+  - **Filtering (Near-Deduplication):** A 4-pass algorithm drops "double-counted" sensor pings. If rows share the same `tag_min`, `tag_max`, and distance, and their start/end times & durations differ by 3 seconds or less, the duplicate is removed.

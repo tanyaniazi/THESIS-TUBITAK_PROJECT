@@ -1,0 +1,35 @@
+# Ignore raw research datasets containing sensitive student information
+data/all1.csv
+data/all2.csv
+data/tagid-mifareid.csv
+data/5tagid.csv
+data/6tagid.csv
+data/7tagid.csv
+
+# Do not ignore de-identified data
+!data/de-identified/
+
+# Python build, cache, and virtual environments
+.venv/
+venv/
+ENV/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+
+# OS metadata
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

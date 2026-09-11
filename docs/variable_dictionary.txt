@@ -1,0 +1,248 @@
+================================================================================
+  STUDENT CONTACT NETWORK ANALYSIS — DATA & NETWORK VARIABLES DICTIONARY
+  TUBITAK Research Project | Workspace: /Users/tanyaniazi/Desktop/TUBITAK-RELATED
+================================================================================
+
+This document provides a comprehensive lookup guide for all variables, DataFrames, 
+matrices, and network (graph) objects defined and used in the data analysis pipeline
+(in "data_analysis_code.ipynb" / "altogether_anls.ipynb" and "utils.py").
+
+--------------------------------------------------------------------------------
+TABLE OF CONTENTS:
+  1. Registry & Raw Metadata DataFrames
+  2. Contact Event DataFrames (Raw, Deduplicated, Filtered)
+  3. Adjacency Matrices (Weights, Counts, Binary)
+  4. Network Graph Objects (Unpruned & Final Pruned Baselines)
+  5. Sweeps & Optimal Threshold Variables
+  6. Final Network & Node Metrics DataFrames
+--------------------------------------------------------------------------------
+
+
+================================================================================
+1. REGISTRY & RAW METADATA DATAFRAMES
+================================================================================
+These contain the hardware catalog registry and class student enrollment lists.
+
+--------------------------------------------------------------------------------
+* df_rfid
+--------------------------------------------------------------------------------
+- Definition: `df_rfid = csv_to_df('data/tagid-mifareid.csv')`
+- Description: A DataFrame loading the raw hardware card database.
+- Purpose: Maps the physical RFID cards' hex/decimal Tag IDs to internal student IDs.
+
+--------------------------------------------------------------------------------
+* df_class5, df_class6, df_class7
+--------------------------------------------------------------------------------
+- Definition: `df_class5 = load_class_contacts('data/5tagid.csv')` (similarly for 6 and 7)
+- Description: Class rosters listing registered students in 5th, 6th, and 7th grades.
+- Columns:
+  - `TagID`           : Card ID assigned to the student.
+  - `StudentNumber`   : Academic school registry number.
+  - `Name` & `Surname`: Student identifier names.
+  - `Gender`          : Gender label ('M' / 'F').
+  - `Class`           : Specific classroom designation (e.g., '5-A', '5-B', etc.).
+  - `Grade`           : Grade level ('5th Grade', '6th Grade', '7th Grade').
+  - `Notes`           : Role label (e.g. 'Student', 'Teacher', 'Stationary').
+
+--------------------------------------------------------------------------------
+* df_cards
+--------------------------------------------------------------------------------
+- Definition: Compiled in Cell 30: `df_cards = pd.DataFrame(rows).T`
+- Description: A consolidated master DataFrame containing the union of all registered RFID tags with cleaned fields (gender, class, role).
+- Purpose: Used for identifying inactive cards and summarizing school demographics.
+
+
+================================================================================
+2. CONTACT EVENT DATAFRAMES (RAW, DEDUPLICATED, FILTERED)
+================================================================================
+These store the actual spatial-temporal interaction events recorded by the cards.
+
+--------------------------------------------------------------------------------
+* df_contacts
+--------------------------------------------------------------------------------
+- Definition: `df_contacts = contacts_raw.drop(columns=['time1', 'time2'])`
+- Description: The master DataFrame containing all loaded contact records from the raw files ('data/all1.csv' and 'data/all2.csv') after simple type conversions and timezone adjustments.
+- Columns:
+  - `tagid1`     : RFID tag ID of the first card in contact.
+  - `tagid2`     : RFID tag ID of the second card in contact.
+  - `begin_time` : Epoch timestamp (Unix seconds) for the start of contact.
+  - `end_time`   : Epoch timestamp (Unix seconds) for the end of contact.
+  - `duration`   : Calculated contact duration in seconds (end_time - begin_time).
+  - `date`       : Extracted calendar date of the encounter.
+
+--------------------------------------------------------------------------------
+* df5, df6, df7
+--------------------------------------------------------------------------------
+- Definition: `df5 = process_grade_contacts(df_contacts, df_class5, target_dates, ...)` (similarly for 6 and 7)
+- Description: Cleaned, deduplicated, and date-filtered contact records for each grade level.
+- Filters Applied:
+  - Only contacts occurring on the specific deployment day of that grade (March 14, 15, or 16, 2023).
+  - Only contacts within school hours (09:00 - 15:00).
+  - Duplicate contact events (overlapping or identical timestamps for the same pair) are dropped.
+- Columns:
+  - `tagid1`, `tagid2`, `begin_time`, `end_time`, `duration`, `date`
+  - `name1`, `name2`     : Names of the participants.
+  - `class1`, `class2`   : Classroom labels (e.g. '5-A', '5-B', or 'unknown').
+  - `gender1`, `gender2` : Gender labels ('M' / 'F').
+  - `notes1`, `notes2`   : Roles (e.g. 'Student', 'Teacher', 'Stationary').
+
+--------------------------------------------------------------------------------
+* student_contacts5, student_contacts6, student_contacts7
+--------------------------------------------------------------------------------
+- Definition: `student_contacts5 = student_only_contacts(df5)` (similarly for 6 and 7)
+- Description: Contact DataFrames filtered to include **only student-student contacts**.
+- Filters Applied:
+  - Excludes contacts where either participant is marked as 'Teacher', 'Stationary', or other non-student role.
+  - Retains students with an 'unknown' class label (unmapped tags that are student tags).
+
+--------------------------------------------------------------------------------
+* known_contacts5, known_contacts6, known_contacts7
+--------------------------------------------------------------------------------
+- Definition: `known_contacts5 = known_class_contacts(student_contacts5)` (similarly for 6 and 7)
+- Description: Contact DataFrames filtered to include **only students with known classrooms**.
+- Filters Applied:
+  - Excludes any contact where either participant's class label is 'unknown'.
+
+
+================================================================================
+3. ADJACENCY MATRICES
+================================================================================
+2D representations of pairwise student interactions, used for heatmap visualizations.
+All matrices have shape (N, N) where N is the number of students with known classrooms.
+Rows and columns correspond to sorted lists of student IDs: `classes5`, `classes6`, `classes7`.
+
+--------------------------------------------------------------------------------
+* matrix_weights5, matrix_weights6, matrix_weights7
+--------------------------------------------------------------------------------
+- Definition: `matrix_weights5 = build_matrix(known_contacts5, classes5, mode='duration')`
+- Description: Weighted adjacency matrices where each cell value represents the **total contact duration in seconds** between student `i` and student `j`.
+
+--------------------------------------------------------------------------------
+* matrix_counts5, matrix_counts6, matrix_counts7
+--------------------------------------------------------------------------------
+- Definition: `matrix_counts5 = build_matrix(known_contacts5, classes5, mode='count')`
+- Description: Adjacency matrices where each cell value represents the **total number of distinct encounters (frequency)** between student `i` and student `j`.
+
+--------------------------------------------------------------------------------
+* matrix_unique5, matrix_unique6, matrix_unique7
+--------------------------------------------------------------------------------
+- Definition: `matrix_unique5 = build_matrix(known_contacts5, classes5, mode='unique_pairs')`
+- Description: Unweighted (binary) adjacency matrices where a cell contains `1` if student `i` and student `j` had at least one contact, and `0` otherwise.
+
+
+================================================================================
+4. NETWORK GRAPH OBJECTS
+================================================================================
+igraph.Graph objects representing structural social networks.
+
+--------------------------------------------------------------------------------
+* contact_net5, contact_net6, contact_net7
+--------------------------------------------------------------------------------
+- Definition: `contact_net5 = build_contact_graph(student_contacts5, df_class5)`
+- Description: Initial multigraphs constructed from student contact records. Nodes are all students (including unknowns), and multiple edges exist between the same pair of nodes (one for each encounter).
+
+--------------------------------------------------------------------------------
+* class_net5, class_net6, class_net7
+--------------------------------------------------------------------------------
+- Definition: `class_net5, class_net6, class_net7 = class_graphs['5'], class_graphs['6'], class_graphs['7']`
+- Description: Classroom-level networks where each node is a classroom (e.g. '5-A', '5-B') instead of an individual student. Edges represent the cumulative contact duration between classrooms.
+
+--------------------------------------------------------------------------------
+* base_net5, base_net6, base_net7
+--------------------------------------------------------------------------------
+- Definition: `base_net5 = known_net5.copy(); base_net5.simplify(combine_edges=sum)`
+- Description: Simplified, unpruned baseline networks containing **only known-class students**. Multiple edges between the same pair are collapsed into a single edge, with the edge attribute 'weight' storing the sum of contact durations.
+
+--------------------------------------------------------------------------------
+* base_net5_all, base_net6_all, base_net7_all
+--------------------------------------------------------------------------------
+- Definition: `base_net5_all = contact_net5.copy(); base_net5_all.simplify(combine_edges=sum)`
+- Description: Simplified, unpruned baseline networks containing **all students** (both known-class and unknown-class students). Multiple edges are collapsed, and weights represent total contact duration.
+
+--------------------------------------------------------------------------------
+* g5_baseline, g6_baseline, g7_baseline
+--------------------------------------------------------------------------------
+- Definition: `g5_baseline = filter_graph_by_duration(base_net5, baseline_threshold_sec)` (similarly for 6 and 7)
+- Description: The final filtered networks for **known-class students**. Edges with total contact duration less than `baseline_threshold_sec` (determined programmatically from the known-class modularity sweep) are pruned.
+
+--------------------------------------------------------------------------------
+* g5_baseline_all, g6_baseline_all, g7_baseline_all
+--------------------------------------------------------------------------------
+- Definition: `g5_baseline_all = filter_graph_by_duration(base_net5_all, baseline_threshold_sec_all)` (similarly for 6 and 7)
+- Description: The final filtered networks for **all students** (known + unknown). Edges with total contact duration less than `baseline_threshold_sec_all` (determined programmatically from the all-students modularity sweep) are pruned.
+
+
+================================================================================
+5. SWEEPS & OPTIMAL THRESHOLD VARIABLES
+================================================================================
+Variables used to determine optimal filtering thresholds.
+
+--------------------------------------------------------------------------------
+* df_mod_combined
+--------------------------------------------------------------------------------
+- Definition: `df_mod_combined = pd.DataFrame(columns=['Threshold_Min', '7th_Grade', '6th_Grade', '5th_Grade'])`
+- Description: DataFrame storing modularity scores for known-class networks across a range of duration thresholds (0 to 20 minutes).
+
+--------------------------------------------------------------------------------
+* df_mod_combined_all
+--------------------------------------------------------------------------------
+- Definition: `df_mod_combined_all = pd.DataFrame(columns=['Threshold_Min', '7th_Grade', '6th_Grade', '5th_Grade'])`
+- Description: DataFrame storing modularity scores for all-students networks (known + unknown) across the same duration thresholds.
+
+--------------------------------------------------------------------------------
+* baseline_threshold_min / baseline_threshold_min_all
+--------------------------------------------------------------------------------
+- Definition: `baseline_threshold_min = int(df_mod_combined.loc[max_jump_idx, 'Threshold_Min'])`
+- Description: The optimal contact duration threshold in minutes (e.g., 1 minute) chosen by finding the point of maximum modularity jump.
+
+--------------------------------------------------------------------------------
+* baseline_threshold_sec / baseline_threshold_sec_all
+--------------------------------------------------------------------------------
+- Definition: `baseline_threshold_sec = baseline_threshold_min * 60`
+- Description: The optimal threshold converted to seconds, used for edge filtering.
+
+
+================================================================================
+6. FINAL NETWORK & NODE METRICS DATAFRAMES
+================================================================================
+DataFrames holding final network-level and node-level properties.
+
+--------------------------------------------------------------------------------
+* final_summary
+--------------------------------------------------------------------------------
+- Definition: Compiled in Cell 50: `final_summary = pd.DataFrame(...)`
+- Description: A summary table comparing the count of nodes (students) and edges (contacts) between the "Known" networks (known-class only) and the "All" networks (includes unknowns) for each grade.
+
+--------------------------------------------------------------------------------
+* df_network_metrics_all
+--------------------------------------------------------------------------------
+- Definition: `df_network_metrics_all = pd.DataFrame(metrics_data_all)`
+- Description: DataFrame containing 8 key topological network-level metrics computed on the final pruned all-students baseline graphs:
+  - `Total Students (Nodes)`
+  - `Total Contacts (Edges)`
+  - `Network Density`
+  - `Avg Degree`
+  - `Avg Contact Duration (min)`
+  - `Avg Clustering Coefficient`
+  - `Avg Shortest Path`
+  - `Max Clique Size`
+
+--------------------------------------------------------------------------------
+* df_zscore / df_zscore_all
+--------------------------------------------------------------------------------
+- Definition: `df_zscore = (df_plot - df_plot.mean()) / df_plot.std()`
+- Description: DataFrames where network-level metrics are Z-score normalized across the three grades to enable visual comparison on a shared scale.
+
+--------------------------------------------------------------------------------
+* all_metrics
+--------------------------------------------------------------------------------
+- Definition: Compiled in Cell 54: `all_metrics = pd.concat(...)`
+- Description: A consolidated node-level metrics DataFrame containing network properties computed for individual students across all grades:
+  - `tagid`            : Student tag ID.
+  - `class`            : Student class.
+  - `name`             : Student name.
+  - `degree`           : Node degree (number of distinct peers contacted).
+  - `clustering_coef`  : Local clustering coefficient.
+  - `weights`          : Strength (total cumulative contact duration in seconds).
+  - `Grade`            : Grade level of the student.
+================================================================================
