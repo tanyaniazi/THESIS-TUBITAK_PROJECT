@@ -1,6 +1,6 @@
 ================================================================================
   STUDENT CONTACT NETWORK ANALYSIS — DATA & NETWORK VARIABLES DICTIONARY
-  TUBITAK Research Project | Workspace: /Users/tanyaniazi/Desktop/TUBITAK-RELATED
+  TUBITAK Research Project 
 ================================================================================
 
 This document provides a comprehensive lookup guide for all variables, DataFrames, 
