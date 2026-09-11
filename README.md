@@ -1,3 +1,9 @@
+[![DOI](https://img.shields.io/badge/DOI-10.48623%2Faperta.286806-blue)](https://doi.org/10.48623/aperta.286806)
+[![License: CC BY 4.0](https://img.shields.io/badge/License-CC_BY_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg?logo=python&logoColor=white)](https://www.python.org/)
+[![Jupyter](https://img.shields.io/badge/Jupyter-Notebook-orange.svg?logo=jupyter&logoColor=white)](https://jupyter.org/)
+[![TÜBİTAK](https://img.shields.io/badge/Project-TÜBİTAK-red.svg)](https://www.tubitak.gov.tr/)
+
 # TEMAS_TUBITAK_PROJECT
 This repository hold codes of my research during my master's degree, which was part of a TUBITAK project.
 
@@ -264,12 +270,23 @@ For complete function signatures and parameters, see the docstrings in [`utils.p
 ## Reference Documentation
 
 
+## Citation & Dataset Source
 
-## Citation
+If you use this dataset or code in your research, please cite:
 
-If you use the `powerlaw` package in your analysis, please cite:
+> Hasan, G., Emine, Y., & Tanya, H. (2026). *Exploring Contact Patterns Among Students via Social Network Analysis: A Cohort Study in Istanbul, Türkiye.* Aperta dataset. https://doi.org/10.48623/aperta.286806
 
-> Alstott, J., Bullmore, E., & Plenz, D. (2014). **powerlaw: A Python Package for Analysis of Heavy-Tailed Distributions.** *PLoS ONE*, 9(1), e85777. https://doi.org/10.1371/journal.pone.0085777
+### BibTeX
+
+```bibtex
+@misc{hasan2026contactpatterns,
+  author       = {Hasan, G. and Emine, Y. and Tanya, H.},
+  title        = {Exploring Contact Patterns Among Students via Social Network Analysis: A Cohort Study in Istanbul, Türkiye},
+  year         = {2026},
+  publisher    = {Aperta (TÜBİTAK)},
+  doi          = {10.48623/aperta.286806},
+  url          = {[https://doi.org/10.48623/aperta.286806](https://doi.org/10.48623/aperta.286806)}
+}
 
 
 ## Troubleshooting
