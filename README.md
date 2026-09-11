@@ -1,7 +1,6 @@
-<<<<<<< HEAD
 # TEMAS_TUBITAK_PROJECT
 This repository hold codes of my research during my master's degree, which was part of a TUBITAK project.
-=======
+
 # Student Contact Network Analysis
 
 ## Overview
@@ -282,4 +281,4 @@ If you use the `powerlaw` package in your analysis, please cite:
 | Figures not saving | Ensure the `figures/` directory exists: `mkdir -p figures` |
 | Kernel dies on large operations | Ensure at least 4 GB of free RAM; the full pipeline uses ~2 GB peak |
 | Different numerical results | Ensure you are running **all cells in order** from a fresh kernel restart (`Kernel → Restart & Run All`) |
->>>>>>> c071c65 (Add published student contact analysis dataset and code)
+(Add published student contact analysis dataset and code)
